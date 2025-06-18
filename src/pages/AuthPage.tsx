@@ -2,16 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChefHat, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+import { toast } from 'react-hot-toast';
+import { Navigation } from '../components/Navigation';
+
+interface FormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
 
 export function AuthPage() {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { signIn, signUp, resetPassword, user } = useAuth();
-
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
     email: '',
@@ -32,22 +42,51 @@ export function AuthPage() {
     }
   }, [user, navigate, searchParams]);
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      if (isSignUp) {
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+        if (error) throw error;
+        toast.success('Logged in successfully!');
+        navigate('/menu');
+      } else {
         if (formData.password !== formData.confirmPassword) {
           throw new Error('Passwords do not match');
         }
-        await signUp(formData.email, formData.password, formData.firstName, formData.lastName);
-      } else {
-        await signIn(formData.email, formData.password);
-        navigate('/');
+        const { error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+            }
+          }
+        });
+        if (error) throw error;
+        toast.success('Sign up successful! Please check your email for verification.');
+        setIsLogin(true);
       }
     } catch (error) {
-      // Error handled by context
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('An error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -66,37 +105,29 @@ export function AuthPage() {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        {/* Header */}
-        <div className="text-center">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50">
+      <Navigation />
+      <div className="max-w-md mx-auto pt-24 pb-16 px-4">
+        <div className="text-center mb-8">
           <Link to="/" className="flex items-center justify-center space-x-2 mb-8">
             <ChefHat className="h-12 w-12 text-amber-600" />
             <span className="text-3xl font-bold text-gray-900">Savoria</span>
           </Link>
           <h2 className="text-3xl font-bold text-gray-900">
-            {isSignUp ? 'Create your account' : 'Welcome back'}
+            {isLogin ? 'Welcome back' : 'Create your account'}
           </h2>
           <p className="mt-2 text-gray-600">
-            {isSignUp 
-              ? 'Join us for an exceptional dining experience' 
-              : 'Sign in to your account to continue'
+            {isLogin 
+              ? 'Sign in to your account to continue' 
+              : 'Join us for an exceptional dining experience'
             }
           </p>
         </div>
 
-        {/* Form */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {isSignUp && (
+            {!isLogin && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -178,7 +209,7 @@ export function AuthPage() {
               </div>
             </div>
 
-            {isSignUp && (
+            {!isLogin && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Confirm Password
@@ -198,7 +229,7 @@ export function AuthPage() {
               </div>
             )}
 
-            {!isSignUp && (
+            {isLogin && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <input
@@ -213,7 +244,7 @@ export function AuthPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={handleForgotPassword}
+                  onClick={() => toast.error('Password reset not implemented yet')}
                   className="text-sm text-amber-600 hover:text-amber-700 font-medium"
                 >
                   Forgot password?
@@ -226,24 +257,24 @@ export function AuthPage() {
               disabled={loading}
               className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white py-3 rounded-lg font-semibold text-lg transition-all duration-200 transform hover:scale-105 disabled:transform-none"
             >
-              {loading ? 'Please wait...' : (isSignUp ? 'Create Account' : 'Sign In')}
+              {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
             </button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-gray-600">
-              {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+              {isLogin ? "Don't have an account?" : 'Already have an account?'}
               <button
-                onClick={() => setIsSignUp(!isSignUp)}
+                onClick={() => setIsLogin(!isLogin)}
                 className="ml-2 text-amber-600 hover:text-amber-700 font-medium"
               >
-                {isSignUp ? 'Sign in' : 'Sign up'}
+                {isLogin ? 'Sign up' : 'Sign in'}
               </button>
             </p>
           </div>
         </div>
 
-        <div className="text-center">
+        <div className="text-center mt-6">
           <Link
             to="/"
             className="text-gray-600 hover:text-amber-600 transition-colors duration-200"

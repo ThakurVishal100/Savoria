@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { User, Mail, Phone, Calendar, Settings, Edit3, Save, X } from 'lucide-react';
+import { User, Mail, Phone, Calendar, Settings, Edit3, Save, X, Heart } from 'lucide-react';
 import { Navigation } from '../components/Navigation';
 import { useAuth } from '../contexts/AuthContext';
+import { Link } from 'react-router-dom';
 
 export function ProfilePage() {
   const { user } = useAuth();
@@ -219,6 +220,22 @@ export function ProfilePage() {
                     <span className="font-semibold text-gray-900">3</span>
                   </div>
                 </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col gap-4">
+                <Link
+                  to="/liked"
+                  className="w-full flex items-center justify-center gap-2 border-2 border-amber-600 text-amber-600 hover:bg-amber-600 hover:text-white py-3 rounded-lg font-semibold text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg mb-2"
+                >
+                  <Heart className="h-5 w-5" />
+                  My Liked Items
+                </Link>
+                <Link
+                  to="/reservations"
+                  className="w-full flex items-center justify-center gap-2 border-2 border-amber-600 text-amber-600 hover:bg-amber-600 hover:text-white py-3 rounded-lg font-semibold text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
+                >
+                  My Reservations
+                </Link>
               </div>
             </div>
           </div>

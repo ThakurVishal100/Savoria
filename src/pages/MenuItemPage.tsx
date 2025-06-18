@@ -1,16 +1,103 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Clock, Users, Star, Heart, Share2 } from 'lucide-react';
 import { Navigation } from '../components/Navigation';
 import { useMenuItems } from '../hooks/useMenuItems';
 import { ReservationForm } from '../components/ReservationForm';
+import { AddToOrderButton } from '../components/AddToOrderButton';
+import { toast } from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 export function MenuItemPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { menuItems, loading } = useMenuItems();
+  const { user } = useAuth();
+  const [isLiked, setIsLiked] = useState(false);
 
   const menuItem = menuItems.find(item => item.id === id);
+
+  const handleLike = async () => {
+    if (!user) {
+      toast.error('Please sign in to like items');
+      navigate('/auth');
+      return;
+    }
+
+    try {
+      if (isLiked) {
+        // Unlike: Delete from database
+        const { error } = await supabase
+          .from('liked_items')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('menu_item_id', id);
+
+        if (error) throw error;
+        toast.success('Removed from favorites');
+      } else {
+        // Like: Insert into database
+        const { error } = await supabase
+          .from('liked_items')
+          .insert([
+            {
+              user_id: user.id,
+              menu_item_id: id
+            }
+          ]);
+
+        if (error) throw error;
+        toast.success('Added to favorites');
+      }
+      setIsLiked(!isLiked);
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      toast.error('Failed to update favorites');
+    }
+  };
+
+  // Add useEffect to check if item is liked
+  useEffect(() => {
+    const checkIfLiked = async () => {
+      if (!user || !id) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('liked_items')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('menu_item_id', id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        setIsLiked(!!data);
+      } catch (error) {
+        console.error('Error checking like status:', error);
+      }
+    };
+
+    checkIfLiked();
+  }, [user, id]);
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: menuItem?.name,
+          text: `Check out ${menuItem?.name} at Savoria!`,
+          url: window.location.href,
+        });
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success('Link copied to clipboard!');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name !== 'AbortError') {
+        toast.error('Failed to share');
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -118,22 +205,34 @@ export function MenuItemPage() {
               <div className="flex items-center space-x-4 mb-8">
                 <span className="text-3xl font-bold text-amber-600">${menuItem.price}</span>
                 <div className="flex space-x-2">
-                  <button className="p-3 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors duration-200">
-                    <Heart className="h-5 w-5 text-gray-600" />
+                  <button 
+                    onClick={handleLike}
+                    className={`p-3 border rounded-full transition-all duration-200 transform hover:scale-110 ${
+                      isLiked 
+                        ? 'border-amber-600 bg-amber-600 text-white' 
+                        : 'border-gray-300 hover:bg-gray-50 text-gray-600'
+                    }`}
+                  >
+                    <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
                   </button>
-                  <button className="p-3 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors duration-200">
+                  <button 
+                    onClick={handleShare}
+                    className="p-3 border border-gray-300 rounded-full hover:bg-gray-50 transition-all duration-200 transform hover:scale-110"
+                  >
                     <Share2 className="h-5 w-5 text-gray-600" />
                   </button>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <button className="w-full bg-amber-600 hover:bg-amber-700 text-white py-4 rounded-lg font-semibold text-lg transition-all duration-200 transform hover:scale-105">
-                  Add to Order
-                </button>
+                <AddToOrderButton
+                  menuItemId={menuItem.id}
+                  price={menuItem.price}
+                  name={menuItem.name}
+                />
                 <Link
                   to="/#contact"
-                  className="w-full border-2 border-amber-600 text-amber-600 hover:bg-amber-600 hover:text-white py-4 rounded-lg font-semibold text-lg transition-all duration-200 text-center block"
+                  className="w-full border-2 border-amber-600 text-amber-600 hover:bg-amber-600 hover:text-white py-4 rounded-lg font-semibold text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg text-center block"
                 >
                   Make Reservation
                 </Link>

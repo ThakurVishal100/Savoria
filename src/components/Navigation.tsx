@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ChefHat, Menu, X, User, LogOut, Calendar, Home, UtensilsCrossed } from 'lucide-react';
+import { ChefHat, Menu, X, User, LogOut, Calendar, Home, UtensilsCrossed, Heart } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export function Navigation() {
@@ -72,6 +72,14 @@ export function Navigation() {
                     >
                       <User className="h-4 w-4" />
                       <span>Profile</span>
+                    </Link>
+                    <Link
+                      to="/liked"
+                      className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    >
+                      <Heart className="h-4 w-4" />
+                      <span>My Liked Items</span>
                     </Link>
                     <Link
                       to="/reservations"
@@ -147,6 +155,14 @@ export function Navigation() {
                   >
                     <User className="h-4 w-4" />
                     <span>Profile</span>
+                  </Link>
+                  <Link
+                    to="/liked"
+                    className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-amber-600 transition-colors duration-200"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <Heart className="h-4 w-4" />
+                    <span>My Liked Items</span>
                   </Link>
                   <Link
                     to="/reservations"
